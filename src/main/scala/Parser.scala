@@ -1,8 +1,12 @@
 import Json.JValue.*
 import Json.*
 
-
-import java.io.{ByteArrayInputStream, InputStream, InputStreamReader, PushbackReader}
+import java.io.{
+  ByteArrayInputStream,
+  InputStream,
+  InputStreamReader,
+  PushbackReader
+}
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable
 import scala.reflect.ClassTag
@@ -26,9 +30,9 @@ object Parser {
       val c = reader.read().toChar
       c match
         case c if c.isWhitespace => ()
-        case 'n' => jValue = parseNull(reader)
-        case 't' => jValue = parseTrue(reader)
-        case 'f' => jValue = parseFalse(reader)
+        case 'n'                 => jValue = parseNull(reader)
+        case 't'                 => jValue = parseTrue(reader)
+        case 'f'                 => jValue = parseFalse(reader)
         case n if n == '-' || n.isDigit =>
           reader.unread(n)
           jValue = parseNumber(reader)
@@ -42,7 +46,7 @@ object Parser {
           reader.unread('}')
           stop = true
         case ',' => stop = true
-        case _ => throw new IllegalArgumentException(s"Can't parse! ${c}")
+        case _   => throw new IllegalArgumentException(s"Can't parse! ${c}")
     }
     jValue
   }
@@ -55,9 +59,7 @@ object Parser {
       val c = reader.read().toChar
       if (c == '}') {
         stop = true
-      } else if (c.isWhitespace) {
-      } else if (c == ',') {
-      } else if (c == ':') {
+      } else if (c.isWhitespace) {} else if (c == ',') {} else if (c == ':') {
         val value = parseValue(reader)
         acc.addOne(key -> value)
       } else if (c == '"') {
@@ -75,17 +77,14 @@ object Parser {
       val c = reader.read().toChar
       if (c == ']') {
         stop = true
-      } else if (c.isWhitespace) {
-      } else if (c == ',') {
-      } else {
+      } else if (c.isWhitespace) {} else if (c == ',') {} else {
         reader.unread(c)
         val value = parseValue(reader)
         acc.addOne(value)
       }
 
-    JArray(acc.result() *)
+    JArray(acc.result()*)
   }
-
 
   private def parseNull(reader: PushbackReader): JNull.type = {
     parseSingleton("ull", reader, JNull)
@@ -146,9 +145,12 @@ object Parser {
           reader.unread(',')
           stop = true
 
-    JNumber(if (exponentEncountered || decimalPointEncountered) (acc.toString.toDouble) else acc.toString.toLong)
+    JNumber(
+      if (exponentEncountered || decimalPointEncountered)
+        (acc.toString.toDouble)
+      else acc.toString.toLong
+    )
   }
-
 
   private def parseString(reader: PushbackReader): JString = {
     val acc = new StringBuffer()
@@ -175,13 +177,20 @@ object Parser {
     JString(acc.toString)
   }
 
-  private def parseSingleton[A: ClassTag](pattern: String, reader: PushbackReader, value: A): A =
+  private def parseSingleton[A: ClassTag](
+      pattern: String,
+      reader: PushbackReader,
+      value: A
+  ): A =
     val buffer = pattern.toBuffer
     while (reader.ready() && buffer.nonEmpty) {
       val c = reader.read().toChar
       c match
         case c if c == buffer.remove(0) => ()
-        case c => throw new IllegalArgumentException(s"Can't parse ${ClassTag[A].getClass.getName}! got ${c}")
+        case c =>
+          throw new IllegalArgumentException(
+            s"Can't parse ${ClassTag[A].getClass.getName}! got ${c}"
+          )
     }
     value
 }

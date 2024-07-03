@@ -51,11 +51,25 @@ class ParserSpec extends FunSuite {
   }
   test("Parser is able to parse an array") {
     val result = Parser.parse("[1,2,3,4,5]")
-    assert(result == JArray(JNumber(1), JNumber(2), JNumber(3), JNumber(4), JNumber(5)))
+    assert(
+      result == JArray(
+        JNumber(1),
+        JNumber(2),
+        JNumber(3),
+        JNumber(4),
+        JNumber(5)
+      )
+    )
   }
   test("Parser is able to parse nested array") {
     val result = Parser.parse("[[1,2,3],[4,5],[]]")
-    assert(result == JArray(JArray(JNumber(1), JNumber(2), JNumber(3)), JArray(JNumber(4), JNumber(5)), JArray()))
+    assert(
+      result == JArray(
+        JArray(JNumber(1), JNumber(2), JNumber(3)),
+        JArray(JNumber(4), JNumber(5)),
+        JArray()
+      )
+    )
   }
   test("Parser is able to parse an array with different element types") {
     val result = Parser.parse("[1,\"2\",true,false,null]")
@@ -66,24 +80,32 @@ class ParserSpec extends FunSuite {
     assert(result == JObject(Map("a" -> JNumber(123))))
   }
   test("Parser is able to parse a bigger object") {
-    val result = Parser.parse(
-      """{
+    val result = Parser.parse("""{
         |"a":123,
         |"b":true,
         |"c":false,
         |"d":null,
         |"e":[ 1 , "2" , true , false , null , {"a":456}]
         |}""".stripMargin)
-    println(result)
-    assert(result == JObject(Map(
-      "a" -> JNumber(123),
-      "b" -> JTrue,
-      "c" -> JFalse,
-      "d" -> JNull,
-      "e" -> JArray(JNumber(1), JString("2"), JTrue, JFalse, JNull, JObject(Map("a" -> JNumber(456))))
-    )))
+    assert(
+      result == JObject(
+        Map(
+          "a" -> JNumber(123),
+          "b" -> JTrue,
+          "c" -> JFalse,
+          "d" -> JNull,
+          "e" -> JArray(
+            JNumber(1),
+            JString("2"),
+            JTrue,
+            JFalse,
+            JNull,
+            JObject(Map("a" -> JNumber(456)))
+          )
+        )
+      )
+    )
   }
-
 
   test("Parser fails when input is invalid") {
     intercept[IllegalArgumentException](Parser.parse("abc"))
