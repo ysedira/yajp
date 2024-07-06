@@ -92,5 +92,48 @@ class JDecoderSpec extends FunSuite {
       Map("a" -> 1, "b" -> 2, "c" -> 3)
     )
   }
+  test("case class is decoded correctly") {
+    case class A(
+        a: Int = 1,
+        b: String,
+        c: Boolean,
+        d: Option[String],
+        e: List[Int]
+    ) derives JDecoder
+    val a = A(123, "abc", true, Some("def"), List(1, 2, 3))
+    assertEquals(
+      read[A](
+        JObject(
+          Map(
+            "a" -> JNumber(123),
+            "b" -> JString("abc"),
+            "c" -> JBoolean(true),
+            "d" -> JString("def"),
+            "e" -> JArray(JNumber(1), JNumber(2), JNumber(3))
+          )
+        )
+      ),
+      a
+    )
+    intercept[IllegalArgumentException] {
+      read[A](JObject(Map("a" -> JNumber(123), "b" -> JString("abc"))))
+    }
+  }
+
+  test("enum is decoded correctly") {
+    enum Side derives JDecoder:
+      case Left, Right
+    assertEquals(
+      read[Side](JObject(Map("_kind" -> JString("Left")))),
+      Side.Left
+    )
+    assertEquals(
+      read[Side](JObject(Map("_kind" -> JString("Right")))),
+      Side.Right
+    )
+    intercept[IllegalArgumentException] {
+      read[Side](JObject(Map("_kind" -> JNumber(1))))
+    }
+  }
 
 }

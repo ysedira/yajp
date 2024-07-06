@@ -58,83 +58,89 @@ object JEncoder:
         JValue.JObject(a.map((k, v) => k -> encoder.write(v)))
 
   inline def derived[A](using m: Mirror.Of[A]): JEncoder[A] =
-    inline m match
-      case s: Mirror.SumOf[A] =>
-        derivedFromSum[A](s)
-      case p: Mirror.ProductOf[A] =>
-        derivedFromProduct[A](p)
-  end derived
+    DerivationHelper.derived[A]
 
-  inline def summonLabels[Elems <: Tuple]: List[String] =
-    inline erasedValue[Elems] match
-      case _: (elem *: elems) =>
-        constValue[elem].asInstanceOf[String] :: summonLabels[elems]
-      case _: EmptyTuple => Nil
-  end summonLabels
+  private object DerivationHelper:
+    inline def derived[A](using m: Mirror.Of[A]): JEncoder[A] =
+      inline m match
+        case s: Mirror.SumOf[A] =>
+          derivedFromSum[A](s)
+        case p: Mirror.ProductOf[A] =>
+          derivedFromProduct[A](p)
+    end derived
 
-  inline def summonInstances[A, Elems <: Tuple]: List[JEncoder[?]] =
-    inline erasedValue[Elems] match
-      case _: (elem *: elems) =>
-        deriveOrSummon[A, elem] :: summonInstances[A, elems]
-      case _: EmptyTuple => Nil
-  end summonInstances
+    inline def summonLabels[Elems <: Tuple]: List[String] =
+      inline erasedValue[Elems] match
+        case _: (elem *: elems) =>
+          constValue[elem].asInstanceOf[String] :: summonLabels[elems]
+        case _: EmptyTuple => Nil
+    end summonLabels
 
-  inline def deriveOrSummon[A, Elem]: JEncoder[Elem] =
-    inline erasedValue[Elem] match
-      case _: A => deriveRec[A, Elem]
-      case _    => summonInline[JEncoder[Elem]]
+    inline def summonInstances[A, Elems <: Tuple]: List[JEncoder[?]] =
+      inline erasedValue[Elems] match
+        case _: (elem *: elems) =>
+          deriveOrSummon[A, elem] :: summonInstances[A, elems]
+        case _: EmptyTuple => Nil
+    end summonInstances
 
-  inline def deriveRec[A, Elem]: JEncoder[Elem] =
-    inline erasedValue[A] match
-      case _: Elem => error("infinite recursive derivation")
-      case _: A =>
-        JEncoder.derived[Elem](using
-          summonInline[Mirror.Of[Elem]]
-        ) // recursive derivation
+    inline def deriveOrSummon[A, Elem]: JEncoder[Elem] =
+      inline erasedValue[Elem] match
+        case _: A => deriveRec[A, Elem]
+        case _    => summonInline[JEncoder[Elem]]
 
-  def iterable[T](p: T): Iterable[(String, Any)] =
-    new AbstractIterable[(String, Any)]:
-      def iterator: Iterator[(String, Any)] =
-        p.asInstanceOf[Product]
-          .productElementNames
-          .zip(p.asInstanceOf[Product].productIterator)
+    inline def deriveRec[A, Elem]: JEncoder[Elem] =
+      inline erasedValue[A] match
+        case _: Elem => error("infinite recursive derivation")
+        case _: A =>
+          JEncoder.derived[Elem](using
+            summonInline[Mirror.Of[Elem]]
+          ) // recursive derivation
 
-  inline def derivedFromSum[A](
-      m: Mirror.SumOf[A]
-  ): JEncoder[A] =
-    val elemInstances = summonInstances[A, m.MirroredElemTypes]
-    val elemLabels = summonLabels[m.MirroredElemLabels]
-    new JEncoder[A]:
-      override def write(a: A): JValue =
-        val index = m.ordinal(a)
-        elemInstances(index).asInstanceOf[JEncoder[Any]].write(a) match
-          case JValue.JNothing        => JValue.JNothing
-          case JValue.JNull           => JValue.JNull
-          case JValue.JBoolean(value) => JValue.JBoolean(value)
-          case JValue.JNumber(value)  => JValue.JNumber(value)
-          case JValue.JString(value)  => JValue.JString(value)
-          case JValue.JArray(values*) => JValue.JArray(values*)
-          case JValue.JObject(values) =>
-            JValue.JObject(
-              values.updated("_kind", JValue.JString(elemLabels(index)))
-            )
+    def iterable[T](p: T): Iterable[(String, Any)] =
+      new AbstractIterable[(String, Any)]:
+        def iterator: Iterator[(String, Any)] =
+          p.asInstanceOf[Product]
+            .productElementNames
+            .zip(p.asInstanceOf[Product].productIterator)
 
-  end derivedFromSum
+    inline def derivedFromSum[A](
+        m: Mirror.SumOf[A]
+    ): JEncoder[A] =
+      val elemInstances = summonInstances[A, m.MirroredElemTypes]
+      val elemLabels = summonLabels[m.MirroredElemLabels]
+      new JEncoder[A]:
+        override def write(a: A): JValue =
+          val index = m.ordinal(a)
+          elemInstances(index).asInstanceOf[JEncoder[Any]].write(a) match
+            case JValue.JNothing        => JValue.JNothing
+            case JValue.JNull           => JValue.JNull
+            case JValue.JBoolean(value) => JValue.JBoolean(value)
+            case JValue.JNumber(value)  => JValue.JNumber(value)
+            case JValue.JString(value)  => JValue.JString(value)
+            case JValue.JArray(values*) => JValue.JArray(values*)
+            case JValue.JObject(values) =>
+              JValue.JObject(
+                values.updated("_kind", JValue.JString(elemLabels(index)))
+              )
 
-  inline def derivedFromProduct[A](
-      m: Mirror.ProductOf[A]
-  ): JEncoder[A] =
-    val elemInstances = summonInstances[A, m.MirroredElemTypes]
-    new JEncoder[A]:
-      override def write(a: A): JValue = {
-        JValue.JObject {
-          iterable(a)
-            .lazyZip(elemInstances)
-            .map { case ((label, value), encoder) =>
-              (label, encoder.asInstanceOf[JEncoder[Any]].write(value))
-            }
-            .toMap
+    end derivedFromSum
+
+    inline def derivedFromProduct[A](
+        m: Mirror.ProductOf[A]
+    ): JEncoder[A] =
+      val elemInstances = summonInstances[A, m.MirroredElemTypes]
+      new JEncoder[A]:
+        override def write(a: A): JValue = {
+          JValue.JObject {
+            iterable(a)
+              .lazyZip(elemInstances)
+              .map { case ((label, value), encoder) =>
+                (label, encoder.asInstanceOf[JEncoder[Any]].write(value))
+              }
+              .toMap
+          }
         }
-      }
-  end derivedFromProduct
+    end derivedFromProduct
+  end DerivationHelper
+
 end JEncoder

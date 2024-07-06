@@ -16,4 +16,3 @@ def main(): Unit =
       |}""".stripMargin)
       .toString
   )
-
