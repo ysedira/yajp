@@ -71,4 +71,23 @@ class JCodecSpec extends FunSuite {
   test("Map is encoded & decoded correctly") {
     readWritten[Map[String, Int]](Map("a" -> 1, "b" -> 2, "c" -> 3))
   }
+
+  test("Case class is encoded & decoded correctly") {
+    case class A(
+        a: Int = 1,
+        b: String,
+        c: Boolean,
+        d: Option[String],
+        e: List[Int]
+    ) derives JCodec
+    val a = A(123, "abc", true, Some("def"), List(1, 2, 3))
+    readWritten[A](a)
+  }
+  test("enum is encoded & decoded correctly") {
+    enum Side derives JCodec:
+      case Left, Right
+    
+    readWritten[Side](Side.Left)
+    readWritten[Side](Side.Right)
+  }
 }
