@@ -10,22 +10,20 @@ object Json:
     case JArray(values: JValue*)
     case JObject(values: Map[String, JValue])
 
-    override def toString: String = this.toString()
-
-    private def toString(ident: String = " "): String = this match
+    override def toString: String = this match
       case JValue.JNothing        => ""
-      case JValue.JNull           => s"${ident}null"
-      case JValue.JBoolean(value) => s"${ident}${value.toString.toLowerCase()}"
-      case JValue.JNumber(value)  => s"${ident}${value.toString.toLowerCase()}"
-      case JValue.JString(value)  => s"""${ident}"$value""""
+      case JValue.JNull           => s"null"
+      case JValue.JBoolean(value) => s"${value.toString.toLowerCase()}"
+      case JValue.JNumber(value)  => s"${value.toString.toLowerCase()}"
+      case JValue.JString(value)  => s""""$value""""
       case JValue.JArray(values*) =>
         s"""${values
-            .map(_.toString(ident + "  "))
-            .mkString("[\n", ",\n", s"\n${ident}]")}"""
+            .map(_.toString())
+            .mkString("[ ", ", ", s" ]")}"""
       case JValue.JObject(values) =>
         s"""${values
-            .map((k, v) => s"""${ident + " "}"$k": ${v.toString}""")
-            .mkString("{\n", ",", "\n}")}"""
+            .map((k, v) => s""""$k": ${v.toString}""")
+            .mkString("{ ", ", ", " }")}"""
 
   end JValue
 

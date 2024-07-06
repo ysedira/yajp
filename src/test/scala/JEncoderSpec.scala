@@ -90,4 +90,40 @@ class JEncoderSpec extends FunSuite {
     )
   }
 
+  test("case class is encoded correctly") {
+    case class A(
+        a: Int = 1,
+        b: String,
+        c: Boolean,
+        d: Option[String],
+        e: List[Int]
+    ) derives JEncoder
+    val a = A(123, "abc", true, Some("def"), List(1, 2, 3))
+    assertEquals(
+      write[A](a),
+      JObject(
+        Map(
+          "a" -> JNumber(123),
+          "b" -> JString("abc"),
+          "c" -> JBoolean(true),
+          "d" -> JString("def"),
+          "e" -> JArray(JNumber(1), JNumber(2), JNumber(3))
+        )
+      )
+    )
+  }
+
+  test("enum is encoded correctly") {
+    enum Side derives JEncoder:
+      case Left, Right
+    assertEquals(
+      write[Side](Side.Left),
+      JObject(Map("_kind" -> JString("Left")))
+    )
+    assertEquals(
+      write[Side](Side.Right),
+      JObject(Map("_kind" -> JString("Right")))
+    )
+  }
+
 }
